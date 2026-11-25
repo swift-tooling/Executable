@@ -14,7 +14,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: ".."),
-        .package(url: "https://github.com/leviouwendijk/Frame.git", branch: "master"),
+        .package(url: "https://github.com/lco-langs/Frame.git", branch: "master"),
         .package(url: "https://github.com/leviouwendijk/Testing.git", branch: "master"),
         .package(url: "https://github.com/leviouwendijk/TestFlows.git", branch: "master"),
     ],
