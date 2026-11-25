@@ -26,40 +26,40 @@ let package = Package(
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Interfaces.git",
+            url: "https://github.com/swift-lco/Interfaces.git",
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Terminal.git",
+            url: "https://github.com/swift-lco/Terminal.git",
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Indentation.git",
+            url: "https://github.com/swift-lco/Indentation.git",
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Path.git",
+            url: "https://github.com/swift-lco/Path.git",
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Primitives.git",
+            url: "https://github.com/swift-lco/Primitives.git",
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Version.git",
+            url: "https://github.com/swift-lco/Version.git",
             branch: "master"
         ),
         .package(url: "https://github.com/swift-langs/Parsers.git", branch: "master"),
         .package(url: "https://github.com/lco-langs/Frame.git", branch: "master"),
-        .package(url: "https://github.com/leviouwendijk/IO.git", branch: "master"),
-        .package(url: "https://github.com/leviouwendijk/Readers.git", branch: "master"),
-        .package(url: "https://github.com/leviouwendijk/Writers.git", branch: "master"),
+        .package(url: "https://github.com/swift-lco/IO.git", branch: "master"),
+        .package(url: "https://github.com/swift-lco/Readers.git", branch: "master"),
+        .package(url: "https://github.com/swift-lco/Writers.git", branch: "master"),
         .package(
-            url: "https://github.com/leviouwendijk/Arguments.git",
+            url: "https://github.com/swift-lco/Arguments.git",
             branch: "master"
         ),
         .package(
-            url: "https://github.com/leviouwendijk/Processes.git",
+            url: "https://github.com/swift-lco/Processes.git",
             branch: "master"
         ),
     ],
