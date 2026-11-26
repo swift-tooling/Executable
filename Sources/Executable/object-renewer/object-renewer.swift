@@ -171,6 +171,20 @@ public struct ObjectRenewer: Sendable {
         //     throw ObjectRenewerError.compilableNotConfigured(object.path)
         // }
 
+        // A nested test or benchmark package (Tests/, Benchmarks/) is run by `sbm test`, never renewed.
+        if compilable,
+           let file = try BuildObjectDiscovery.local(named: PackageFrame.fileName, in: resolvedPaths.directory),
+           case .tests = try PackageFrame.read(file) {
+            printi("Test package; skipping.".ansi(.brightBlack))
+            return
+        }
+        if compilable,
+           let file = try BuildObjectDiscovery.local(named: PackageFrame.fileName, in: resolvedPaths.directory),
+           case .benchmarks = try PackageFrame.read(file) {
+            printi("Benchmark package; skipping.".ansi(.brightBlack))
+            return
+        }
+
         if compilable, let package = try PackageFrame.package(in: resolvedPaths.directory) {
             guard !package.ignore else {
                 printi("Ignored (package.frame .ignore = true); skipping.".ansi(.brightBlack))
