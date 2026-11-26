@@ -89,16 +89,22 @@ extension ExecutableTestSuite {
 
             _ = try await GitRepo.release(.next(.minor), at: fixture.work)
             let head = try await fixture.git(["rev-parse", "HEAD"])
-            try "ProjectRootPath=/x\nVersion=0.0.9\nCommit=\(head)\nDirty=false\n"
+            let source = try await SourceFingerprint.compute(package: fixture.work).value
+            try "ProjectRootPath=/x\nVersion=0.0.9\nCommit=\(head)\nDirty=false\nSource=\(source)\n"
                 .write(to: deployRoot.appendingPathComponent("tool.metadata"), atomically: true, encoding: .utf8)
             let old = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
             try Expect.equal(old.release, .init(major: 0, minor: 1, patch: 0), "release is the newest tag")
-            try Expect.equal(old.behind, ["tool"], "a deploy below the release is behind")
+            try Expect.equal(old.behind, ["tool"], "a deploy below the release is behind, even from the same source")
+
+            try "ProjectRootPath=/x\nVersion=0.1.0\nCommit=\(head)\nDirty=false\nSource=\(source)\n"
+                .write(to: deployRoot.appendingPathComponent("tool.metadata"), atomically: true, encoding: .utf8)
+            let current = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
+            try Expect.equal(current.behind, [], "a deploy of the release from the current source is current")
 
             try "ProjectRootPath=/x\nVersion=0.1.0\nCommit=\(head)\nDirty=false\n"
                 .write(to: deployRoot.appendingPathComponent("tool.metadata"), atomically: true, encoding: .utf8)
-            let current = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
-            try Expect.equal(current.behind, [], "a deploy of the release is current")
+            let unfingerprinted = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
+            try Expect.equal(unfingerprinted.behind, ["tool"], "a deploy recorded before source fingerprints is behind once")
 
             try "ProjectRootPath=/x\nBuildType=release\n"
                 .write(to: deployRoot.appendingPathComponent("tool.metadata"), atomically: true, encoding: .utf8)
@@ -138,7 +144,7 @@ extension ExecutableTestSuite {
             try Expect.equal(PackageConfiguration(buildArguments: ["--skip-products", "x"]).localProducts, [], "other flags name no local products")
         }
 
-        Test("local products are behind until a build records HEAD, and again after a pull") {
+        Test("local products are behind until a build records their source, and again after a change") {
             let fixture = try await TagFixture()
             defer { fixture.remove() }
             let deployRoot = fixture.root.appendingPathComponent("sbm-bin", isDirectory: true)
@@ -147,14 +153,32 @@ extension ExecutableTestSuite {
             let never = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
             try Expect.equal(never.behind, ["app"], "a product never built is behind")
 
-            try BuildRecord.write(products: ["app"], project: fixture.work, mode: .release, identity: await BuildIdentity.current(at: fixture.work))
+            let source = try await SourceFingerprint.compute(package: fixture.work).value
+            try BuildRecord.write(
+                products: ["app"],
+                project: fixture.work,
+                mode: .release,
+                identity: await BuildIdentity.current(at: fixture.work)?.with(source: source)
+            )
             let current = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
-            try Expect.equal(current.behind, [], "a build of HEAD is current, without any release")
+            try Expect.equal(current.behind, [], "a build of the current source is current, without any release")
             try Expect.equal(current.built.first?.metadata?.commit, try await fixture.git(["rev-parse", "HEAD"]), "the record holds the built commit")
+            try Expect.equal(current.built.first?.metadata?.source, source, "the record holds the source fingerprint")
 
             try await fixture.commit("pulled")
             let pulled = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
-            try Expect.equal(pulled.behind, ["app"], "a new commit makes the product behind, no tag needed")
+            try Expect.equal(pulled.behind, ["app"], "a changed file makes the product behind, no tag needed")
+
+            try await fixture.git(["commit", "--allow-empty", "-m", "empty"])
+            try BuildRecord.write(
+                products: ["app"],
+                project: fixture.work,
+                mode: .release,
+                identity: await BuildIdentity.current(at: fixture.work)?.with(source: try await SourceFingerprint.compute(package: fixture.work).value)
+            )
+            try await fixture.git(["commit", "--allow-empty", "-m", "another"])
+            let emptyCommit = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)
+            try Expect.equal(emptyCommit.behind, [], "a commit that changes no file of the package does not rebuild it")
 
             try FileManager.default.removeItem(at: fixture.work.appendingPathComponent(".build"))
             let wiped = try await PackageVersionStatus.inspect(at: fixture.work, configuration: package, deployedTo: deployRoot)

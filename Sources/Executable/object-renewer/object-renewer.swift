@@ -11,7 +11,8 @@ public struct ObjectRenewer: Sendable {
 
     public static func update(
         objects: [RenewableObject],
-        safe: Bool
+        safe: Bool,
+        record: Bool = false
     ) async throws {
         for obj in objects {
             // try await check(object: obj, safe: safe)
@@ -27,7 +28,7 @@ public struct ObjectRenewer: Sendable {
             // }
 
             do {
-                try await check(object: obj, safe: safe)
+                try await check(object: obj, safe: safe, record: record)
             } catch let e as Shell.Error {
                 // concise summary
                 fputs("Failed updating \(obj.path): \(e)\n", stderr)
@@ -47,7 +48,7 @@ public struct ObjectRenewer: Sendable {
         public let directory: URL
     }
 
-    public static func check(object: RenewableObject, safe: Bool) async throws {
+    public static func check(object: RenewableObject, safe: Bool, record: Bool = false) async throws {
         let ignore = object.ignore ?? false
         if ignore {
             print("in: \(object.path)")
@@ -76,6 +77,7 @@ public struct ObjectRenewer: Sendable {
         try await check_compiled(
             object: object,
             safe: safe,
+            record: record,
             resolvedPaths: resolvedPaths
         )
 
@@ -157,6 +159,7 @@ public struct ObjectRenewer: Sendable {
     internal static func check_compiled(
         object: RenewableObject,
         safe: Bool,
+        record: Bool = false,
         resolvedPaths: ResolvedPaths
     ) async throws {
         guard object.criteria.compiled else { return }
@@ -169,12 +172,22 @@ public struct ObjectRenewer: Sendable {
         // }
 
         if compilable, let package = try PackageFrame.package(in: resolvedPaths.directory) {
-            // The release is the newest tag; each deployed product's metadata says what it was built from.
+            // Each product's metadata records the source fingerprint it was built from.
             let status = try await PackageVersionStatus.inspect(at: resolvedPaths.directory, configuration: package)
             if status.behind.isEmpty {
-                printi("Products are current; skipping compile.")
+                printi("Products are current (source \(status.source.map { PackageVersionStatus.short($0.value) } ?? "unknown")); skipping compile.")
+            } else if record {
+                let recorded = try status.recordSource()
+                let unbuilt = status.behind.filter { !recorded.contains($0) }
+                printi("Recorded source \(status.source.map { PackageVersionStatus.short($0.value) } ?? "unknown") as built: \(recorded.isEmpty ? "none" : recorded.joined(separator: ", "))")
+                if !unbuilt.isEmpty {
+                    printi("Never built, left behind: \(unbuilt.joined(separator: ", "))".ansi(.yellow))
+                }
             } else {
-                printi("Behind (release \(status.release.map(ReleaseTag.name(for:)) ?? "untagged"), head \(status.head.map { String($0.commit.prefix(12)) } ?? "unknown")): \(status.behind.joined(separator: ", ")); compiling…")
+                for product in status.behind {
+                    printi("Behind: \(product): \(status.reason(product) ?? "unknown")")
+                }
+                printi("Compiling…")
                 try await execute(in: resolvedPaths.directory)
             }
         } else if compilable,

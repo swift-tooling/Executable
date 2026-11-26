@@ -37,6 +37,12 @@ public enum SwiftRenewRepositoriesCommand: BoundArgumentCommand {
         )
         public var dryRun: Bool
 
+        @Flag(
+            "record",
+            help: "Record the current source fingerprint as built for products that have a build, without compiling (adopting existing builds)."
+        )
+        public var record: Bool
+
         public init() {}
     }
 
@@ -115,8 +121,30 @@ public enum SwiftRenewRepositoriesCommand: BoundArgumentCommand {
 
         guard !options.dryRun else {
             print(
-                "Dry run enabled; skipping ObjectRenewer.update().".ansi(.yellow)
+                "Dry run: what a renewal would build, by source fingerprint.".ansi(.yellow)
             )
+
+            for object in objects where object.compilable != false {
+                let directory = URL(fileURLWithPath: object.path, isDirectory: true)
+
+                guard let package = try? PackageFrame.package(in: directory),
+                      let status = try? await PackageVersionStatus.inspect(at: directory, configuration: package)
+                else {
+                    continue
+                }
+
+                if status.behind.isEmpty {
+                    print("  current  ".ansi(.brightBlack) + object.path)
+                } else {
+                    for product in status.behind {
+                        print(
+                            "  build    ".ansi(.bold)
+                                + object.path
+                                + "  \(product): \(status.reason(product) ?? "unknown")".ansi(.brightBlack)
+                        )
+                    }
+                }
+            }
             return
         }
 
@@ -127,7 +155,8 @@ public enum SwiftRenewRepositoriesCommand: BoundArgumentCommand {
 
         try await ObjectRenewer.update(
             objects: objects,
-            safe: options.safe
+            safe: options.safe,
+            record: options.record
         )
     }
 }

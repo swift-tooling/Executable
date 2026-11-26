@@ -180,6 +180,9 @@ public extension Build {
     ) async throws -> ExecutionResult {
         let result: BuildResult
 
+        // What is about to be compiled; recorded only if the build succeeds.
+        let source = try? await SourceFingerprint.compute(package: plan.request.project)
+
         if captureOutput {
             result = try await captured(
                 at: plan.request.project,
@@ -248,7 +251,7 @@ public extension Build {
             )
         }
 
-        let identity = await BuildIdentity.current(at: plan.request.project)
+        let identity = await BuildIdentity.current(at: plan.request.project)?.with(source: source?.value)
         let records = BuildRecord.directory(
             project: plan.request.project,
             mode: plan.request.config.mode

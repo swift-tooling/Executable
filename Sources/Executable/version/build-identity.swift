@@ -13,11 +13,19 @@ public struct BuildIdentity: Sendable, Equatable {
     public let version: ObjectVersion?
     public let commit: String
     public let dirty: Bool
+    /// The package's source fingerprint ([SourceFingerprint]); what decides whether a build is current.
+    public let source: String?
 
-    public init(version: ObjectVersion?, commit: String, dirty: Bool) {
+    public init(version: ObjectVersion?, commit: String, dirty: Bool, source: String? = nil) {
         self.version = version
         self.commit = commit
         self.dirty = dirty
+        self.source = source
+    }
+
+    /// This identity with the source fingerprint taken before a build.
+    public func with(source: String?) -> BuildIdentity {
+        .init(version: version, commit: commit, dirty: dirty, source: source)
     }
 
     /// The identity of HEAD; nil outside a git repository.
@@ -48,7 +56,7 @@ public struct BuildIdentity: Sendable, Equatable {
             "Version=\(version.map(ReleaseTag.name(for:)) ?? "")",
             "Commit=\(commit)",
             "Dirty=\(dirty)",
-        ]
+        ] + (source.map { ["Source=\($0)"] } ?? [])
     }
 }
 

@@ -31,6 +31,11 @@ public enum SwiftVersionCommand: RunnableArgumentCommand {
             if let head = status.head {
                 print("head:     \(head.commit.prefix(12))\(head.dirty ? " (dirty)" : "")")
             }
+            if let source = status.source {
+                print("source:   \(PackageVersionStatus.short(source.value)) (\(source.fileCount) files in \(source.inputs.count) input\(source.inputs.count == 1 ? "" : "s"))")
+            } else {
+                print("source:   unknown (fingerprint failed; deciding by commit)")
+            }
             for entry in status.deployed {
                 guard let metadata = entry.metadata else {
                     print("deployed: \(entry.product) never deployed")
@@ -38,17 +43,17 @@ public enum SwiftVersionCommand: RunnableArgumentCommand {
                 }
                 let version = metadata.version.map(ReleaseTag.name(for:)) ?? "untagged"
                 let commit = metadata.commit.map { String($0.prefix(12)) } ?? "unknown commit"
-                print("deployed: \(entry.product) \(version) at \(commit)\(metadata.dirty ? " (dirty)" : "")")
+                print("deployed: \(entry.product) \(version) at \(commit)\(metadata.dirty ? " (dirty)" : ""), source \(metadata.source.map(PackageVersionStatus.short) ?? "unrecorded")")
             }
             for entry in status.built {
                 guard let metadata = entry.metadata, let commit = metadata.commit else {
                     print("built:    \(entry.product) no build record")
                     continue
                 }
-                print("built:    \(entry.product) at \(commit.prefix(12))\(metadata.dirty ? " (dirty)" : "")")
+                print("built:    \(entry.product) at \(commit.prefix(12))\(metadata.dirty ? " (dirty)" : ""), source \(metadata.source.map(PackageVersionStatus.short) ?? "unrecorded")")
             }
-            if !status.behind.isEmpty {
-                print("behind:   \(status.behind.joined(separator: ", "))")
+            for product in status.behind {
+                print("behind:   \(product): \(status.reason(product) ?? "unknown")")
             }
             if let divergence = try? await GitRepo.divergence(current) {
                 print("git: ahead \(divergence.ahead), behind \(divergence.behind)")
