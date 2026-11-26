@@ -134,7 +134,8 @@ public enum PackageFrame {
             deploy: package.deployProducts.map { .init(products: $0) },
             mode: package.mode,
             wipe: package.wipe.map { .init(above: $0.above) },
-            sign: package.signing.map(SignFields.init)
+            sign: package.signing.map(SignFields.init),
+            ignore: package.ignore ? true : nil
         ))
     }
 
@@ -176,7 +177,8 @@ public enum PackageFrame {
         }
         return .init(buildArguments: arguments, deployProducts: fields.deploy?.products, mode: fields.mode,
                      wipe: fields.wipe.map { .init(above: $0.above) },
-                     signing: try fields.sign.map { try $0.signing() })
+                     signing: try fields.sign.map { try $0.signing() },
+                     ignore: fields.ignore ?? false)
     }
 
     private static func configuration(_ fields: TestsFields) -> TestConfiguration {
@@ -198,6 +200,23 @@ extension PackageFrame {
         let mode: BuildMode?
         let wipe: WipeFields?
         let sign: SignFields?
+        let ignore: Bool?
+
+        init(
+            build: BuildFields?,
+            deploy: DeployFields?,
+            mode: BuildMode?,
+            wipe: WipeFields?,
+            sign: SignFields?,
+            ignore: Bool? = nil
+        ) {
+            self.build = build
+            self.deploy = deploy
+            self.mode = mode
+            self.wipe = wipe
+            self.sign = sign
+            self.ignore = ignore
+        }
 
         static var frameSchema: Frame.Schema {
             .object([
@@ -206,6 +225,7 @@ extension PackageFrame {
                 .init("mode", .of(BuildMode.self), summary: "How `sbm build` builds: .release (default) or .debug; -d/--release override it."),
                 .init("wipe", .of(WipeFields.self)),
                 .init("sign", .of(SignFields.self)),
+                .init("ignore", .boolean, summary: "true: `sbm rr` never builds this package (a retired generation in a repository of many); `sbm build` by hand still does."),
             ], summary: "How sbm builds and deploys the package beside this file: the `package` binding of package.frame.")
         }
     }

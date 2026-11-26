@@ -281,6 +281,25 @@ enum ExecutableFrameTests {
             }
         }
 
+        Test("ignore: a retired package is skipped by renewals, absent means built") {
+            guard case .package(let retired) = try PackageFrame.parse(
+                "import Executable;\n\nlet package: Package = .{ .build = .{ .arguments = [\"--products\", \"Old\"] }, .ignore = true };\n"
+            ) else {
+                throw ExpectationError("package.frame with .ignore is a package")
+            }
+            try Expect.true(retired.ignore, ".ignore = true is read")
+            try Expect.equal(retired.localProducts, ["Old"], "the rest of the package is unchanged")
+
+            guard case .package(let plain) = try PackageFrame.parse("import Executable;\n\nlet package: Package = .{};\n") else {
+                throw ExpectationError("an empty package.frame is a package")
+            }
+            try Expect.false(plain.ignore, "without .ignore a package is renewed")
+
+            let written = PackageConfiguration(buildArguments: ["--products", "Old"], ignore: true)
+            try Expect.equal(try PackageFrame.parse(PackageFrame.source(written)), .package(written), ".ignore round-trips")
+            try Expect.false(try PackageFrame.source(PackageConfiguration()).contains("ignore"), "a renewed package does not write .ignore")
+        }
+
         Test("written package.frame reads back the same") {
             let package = PackageConfiguration(buildArguments: ["--skip-products", "x"], deployProducts: ["gm"])
             try Expect.equal(try PackageFrame.parse(PackageFrame.source(package)), .package(package), "package round-trips")

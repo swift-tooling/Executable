@@ -172,6 +172,11 @@ public struct ObjectRenewer: Sendable {
         // }
 
         if compilable, let package = try PackageFrame.package(in: resolvedPaths.directory) {
+            guard !package.ignore else {
+                printi("Ignored (package.frame .ignore = true); skipping.".ansi(.brightBlack))
+                return
+            }
+
             // Each product's metadata records the source fingerprint it was built from.
             let status = try await PackageVersionStatus.inspect(at: resolvedPaths.directory, configuration: package)
             if status.behind.isEmpty {

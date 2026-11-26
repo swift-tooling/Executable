@@ -127,9 +127,16 @@ public enum SwiftRenewRepositoriesCommand: BoundArgumentCommand {
             for object in objects where object.compilable != false {
                 let directory = URL(fileURLWithPath: object.path, isDirectory: true)
 
-                guard let package = try? PackageFrame.package(in: directory),
-                      let status = try? await PackageVersionStatus.inspect(at: directory, configuration: package)
-                else {
+                guard let package = try? PackageFrame.package(in: directory) else {
+                    continue
+                }
+
+                if package.ignore {
+                    print("  ignored  ".ansi(.brightBlack) + object.path.ansi(.brightBlack))
+                    continue
+                }
+
+                guard let status = try? await PackageVersionStatus.inspect(at: directory, configuration: package) else {
                     continue
                 }
 

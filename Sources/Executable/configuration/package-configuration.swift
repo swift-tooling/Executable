@@ -17,19 +17,23 @@ public struct PackageConfiguration: Sendable, Equatable {
     public let wipe: WipePolicy?
     /// How `sbm build` signs the products it builds (unless `--sign` or `--ignore-frame`); nil leaves them unsigned.
     public let signing: PackageSigning?
+    /// `sbm rr` never builds this package (a retired generation); `sbm build` by hand still does.
+    public let ignore: Bool
 
     public init(
         buildArguments: [String] = [],
         deployProducts: [String]? = nil,
         mode: BuildMode? = nil,
         wipe: WipePolicy? = nil,
-        signing: PackageSigning? = nil
+        signing: PackageSigning? = nil,
+        ignore: Bool = false
     ) {
         self.buildArguments = buildArguments
         self.deployProducts = deployProducts
         self.mode = mode
         self.wipe = wipe
         self.signing = signing
+        self.ignore = ignore
     }
 
     /// Products a plain `sbm build` builds without deploying them: the `--products` in
